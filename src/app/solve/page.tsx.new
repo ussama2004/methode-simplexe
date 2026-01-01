@@ -1,0 +1,244 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Problem, 
+  solveWithSimplexe, 
+  solveWithDualSimplexe, 
+  SimplexeResult, 
+  SimplexeIteration, 
+  Tableau 
+} from '../../utils/simplexe';
+
+export default function SolvePage() {
+  const router = useRouter();
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [result, setResult] = useState<SimplexeResult | null>(null);
+  const [method, setMethod] = useState<'primal' | 'dual'>('primal');
+  const [currentIteration, setCurrentIteration] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    // Récupérer le problème depuis localStorage
+    try {
+      const storedProblem = localStorage.getItem('simplexProblem');
+      if (storedProblem) {
+        const parsedProblem = JSON.parse(storedProblem) as Problem;
+        setProblem(parsedProblem);
+        setLoading(false);
+      } else {
+        setError('Aucun problème trouvé. Veuillez définir un problème.');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Erreur lors de la récupération du problème.');
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (problem) {
+      // Définir automatiquement la méthode en fonction du type d'objectif
+      if (problem.objective.type === 'max') {
+        setMethod('primal');
+      } else {
+        setMethod('dual');
+      }
+      
+      // Résoudre le problème
+      solveProblem();
+    }
+  }, [problem, method]);
+
+  const solveProblem = () => {
+    if (!problem) return;
+    
+    try {
+      let result;
+      if (method === 'primal') {
+        result = solveWithSimplexe(problem);
+      } else {
+        result = solveWithDualSimplexe(problem);
+      }
+      
+      setResult(result);
+      setCurrentIteration(0);
+    } catch (err) {
+      setError('Erreur lors de la résolution du problème.');
+    }
+  };
+
+  const handleMethodChange = (newMethod: 'primal' | 'dual') => {
+    setMethod(newMethod);
+  };
+
+  const handleIterationChange = (index: number) => {
+    if (result && index >= 0 && index < result.iterations.length) {
+      setCurrentIteration(index);
+    }
+  };
+
+  const renderTableau = (tableau: Tableau, iteration: SimplexeIteration) => {
+    return (
+      <div className="overflow-x-auto">
+        <table className="simplexe-table w-full border-collapse mb-4">
+          <thead>
+            <tr className="bg-gray-100">
+              <th className="p-2 border border-gray-300">Base</th>
+              {tableau[0].slice(0, -1).map((_, colIndex) => (
+                <th key={`header-${colIndex}`} className="p-2 border border-gray-300">
+                  {colIndex < problem!.objective.coefficients.length 
+                    ? `x${colIndex + 1}` 
+                    : `s${colIndex - problem!.objective.coefficients.length + 1}`}
+                </th>
+              ))}
+              <th className="p-2 border border-gray-300">RHS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableau.slice(0, -1).map((row, rowIndex) => (
+              <tr key={`row-${rowIndex}`} className={rowIndex === iteration.pivotRow ? 'bg-blue-100' : ''}>
+                <td className="p-2 border border-gray-300 font-medium">
+                  {iteration.basicVariables[rowIndex]}
+                </td>
+                {row.map((cell, cellIndex) => (
+                  <td 
+                    key={`cell-${rowIndex}-${cellIndex}`} 
+                    className={`p-2 border border-gray-300 text-center ${
+                      cellIndex === iteration.pivotColumn && rowIndex === iteration.pivotRow
+                        ? 'bg-yellow-200 font-bold'
+                        : cellIndex === iteration.pivotColumn
+                          ? 'bg-blue-50'
+                          : ''
+                    }`}
+                  >
+                    {cell.toFixed(2)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+            <tr className="bg-gray-100">
+              <td className="p-2 border border-gray-300 font-medium">Z</td>
+              {tableau[tableau.length - 1].map((cell, cellIndex) => (
+                <td 
+                  key={`z-${cellIndex}`} 
+                  className={`p-2 border border-gray-300 text-center ${
+                    cellIndex === iteration.pivotColumn ? 'bg-blue-50' : ''
+                  }`}
+                >
+                  {cell.toFixed(2)}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderIterationDetails = (iteration: SimplexeIteration) => {
+    if (iteration.isOptimal) {
+      return (
+        <div className="bg-green-50 p-4 rounded-lg mb-4 border-l-4 border-green-500">
+          <p className="text-green-800">
+            <span className="font-bold">Solution optimale trouvée!</span> Toutes les variables d'écart sont positives ou nulles et tous les coefficients de la fonction objectif sont négatifs ou nuls.
+          </p>
+        </div>
+      );
+    }
+
+    if (iteration.isUnbounded) {
+      return (
+        <div className="bg-yellow-50 p-4 rounded-lg mb-4 border-l-4 border-yellow-500">
+          <p className="text-yellow-800">
+            <span className="font-bold">Problème non borné détecté!</span> Il existe une colonne avec un coefficient positif dans la fonction objectif, mais tous les éléments de cette colonne sont négatifs ou nuls.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-blue-50 p-4 rounded-lg mb-4 border-l-4 border-blue-500">
+        <p className="text-blue-800 mb-2">
+          <span className="font-bold">Variable entrante:</span> {iteration.enteringVariable} (colonne {iteration.pivotColumn + 1})
+        </p>
+        <p className="text-blue-800 mb-2">
+          <span className="font-bold">Variable sortante:</span> {iteration.leavingVariable} (ligne {iteration.pivotRow + 1})
+        </p>
+        <p className="text-blue-800">
+          <span className="font-bold">Élément pivot:</span> {iteration.pivotElement.toFixed(2)} à la position ({iteration.pivotRow + 1}, {iteration.pivotColumn + 1})
+        </p>
+      </div>
+    );
+  };
+
+  const renderSolution = () => {
+    if (!result || !result.optimal) return null;
+    
+    const solution = result.solution;
+    const objectiveValue = result.objectiveValue;
+    
+    return (
+      <div>
+        <div className="bg-green-50 p-4 rounded-lg mb-6 border-l-4 border-green-500">
+          <h3 className="text-lg font-semibold text-green-800 mb-3">Solution optimale</h3>
+          
+          <div className="mb-4">
+            <p className="text-green-800 font-bold">
+              Valeur de la fonction objectif: {objectiveValue.toFixed(4)}
+            </p>
+          </div>
+          
+          <h4 className="font-semibold text-green-800 mb-2">Valeurs des variables:</h4>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {solution.map((value, index) => (
+              <div 
+                key={`sol-${index}`} 
+                className="bg-white p-3 rounded-md shadow-sm border border-green-200"
+              >
+                <div className="text-sm text-green-600">Variable</div>
+                <div className="font-mono font-bold text-lg">
+                  {index < problem!.objective.coefficients.length 
+                    ? `x${index + 1}` 
+                    : `s${index - problem!.objective.coefficients.length + 1}`}
+                </div>
+                <div className="text-gray-700">{value.toFixed(4)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <div className="text-center py-8">Chargement...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md mt-8">
+          <div className="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p>{error}</p>
+          </div>
+        </div>
+        <div className="flex justify-center mt-6">
+          <button 
+            onClick={() => router.push('/')} 
+            className="btn-primary flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Retour à l'accueil
+          </button>
+        </div>
+      </div>
+    );
+  }

@@ -1,0 +1,340 @@
+  if (!problem) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="card hover:shadow-xl transition-all duration-300 mt-8">
+          <h2 className="card-title flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Aucun problème défini
+          </h2>
+          <p className="mb-6" style={{color: 'rgba(var(--foreground-rgb), 0.8)'}}>
+            Veuillez définir un problème de programmation linéaire pour continuer.
+          </p>
+          <div className="flex justify-center">
+            <button 
+              onClick={() => router.push('/')} 
+              className="btn-primary flex items-center group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>Définir un problème</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto p-4">
+      <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-8 text-center">
+        Résolution par la méthode du simplexe
+      </h1>
+      
+      {/* Affichage du problème */}
+      <div className="card mb-8 hover:shadow-xl transition-all duration-300">
+        <h2 className="card-title flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          </svg>
+          Problème à résoudre
+        </h2>
+        
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold mb-3 flex items-center">
+            <div className="rounded-full h-2 w-2 mr-2" 
+                 style={{
+                   backgroundColor: problem.objective.type === 'max' 
+                     ? 'rgba(var(--primary-color), 1)' 
+                     : 'rgba(var(--accent-color), 1)'
+                 }}>
+            </div>
+            <span style={{
+                color: problem.objective.type === 'max' 
+                  ? 'rgba(var(--primary-color), 1)' 
+                  : 'rgba(var(--accent-color), 1)'
+                }}>
+              {problem.objective.type === 'max' ? 'Maximiser' : 'Minimiser'}
+            </span>
+          </h3>
+          
+          <div className="flex items-center p-3 rounded-md" 
+               style={{backgroundColor: 'rgba(var(--foreground-rgb), 0.03)'}}>
+            <span className="mr-2 font-medium">{problem.objective.type === 'max' ? 'Max' : 'Min'} Z = </span>
+            {problem.objective.coefficients.map((coeff, index) => (
+              <span key={`obj-${index}`} className="mr-2 font-mono">
+                {index > 0 && coeff >= 0 ? '+ ' : ''}
+                {coeff !== 0 ? `${coeff}x${index + 1} ` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+        
+        <div className="p-4 rounded-lg" style={{backgroundColor: 'rgba(var(--accent-color), 0.05)'}}>
+          <h3 className="text-lg font-semibold mb-3 flex items-center">
+            <div className="rounded-full h-2 w-2 mr-2" style={{backgroundColor: 'rgba(var(--accent-color), 0.8)'}}></div>
+            <span>Contraintes</span>
+          </h3>
+          
+          {problem.constraints.map((constraint, index) => (
+            <div key={`constraint-${index}`} className="flex items-center flex-wrap mb-3 p-2 rounded-md" 
+                 style={{backgroundColor: 'rgba(var(--foreground-rgb), 0.02)'}}>
+              {constraint.coefficients.map((coeff, coefIndex) => (
+                <span key={`coef-${index}-${coefIndex}`} className="mr-2 font-mono">
+                  {coefIndex > 0 && coeff >= 0 ? '+ ' : ''}
+                  {coeff !== 0 ? `${coeff}x${coefIndex + 1} ` : ''}
+                </span>
+              ))}
+              <span className="mr-2 font-medium">
+                <span className="mx-2">{constraint.sign}</span> 
+                <span className="font-mono">{constraint.rhs}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Sélection de la méthode */}
+      <div className="card mb-8 hover:shadow-xl transition-all duration-300">
+        <h2 className="card-title flex items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Méthode de résolution
+        </h2>
+        
+        <div className="flex flex-wrap gap-3 mb-4">
+          <button
+            onClick={() => handleMethodChange('primal')}
+            className={`px-4 py-2 rounded-md transition-all duration-200 ${
+              method === 'primal'
+                ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
+                : 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            Simplexe Primal
+          </button>
+          <button
+            onClick={() => handleMethodChange('dual')}
+            className={`px-4 py-2 rounded-md transition-all duration-200 ${
+              method === 'dual'
+                ? 'bg-gradient-to-r from-purple-600 to-purple-500 text-white shadow-md'
+                : 'bg-white border border-purple-200 text-purple-600 hover:bg-purple-50'
+            }`}
+          >
+            Simplexe Dual
+          </button>
+        </div>
+        
+        <div className="p-4 rounded-lg" 
+             style={{
+               backgroundColor: problem.objective.type === 'max' 
+                 ? 'rgba(var(--primary-light), 0.1)' 
+                 : 'rgba(var(--accent-color), 0.5)'
+             }}>
+          <div className="flex items-start">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 mt-0.5" 
+                 style={{color: problem.objective.type === 'max' 
+                   ? 'rgba(var(--primary-color), 0.8)' 
+                   : 'rgba(var(--accent-color), 0.8)'}}
+                 fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p style={{color: 'rgba(var(--foreground-rgb), 0.8)'}}>
+              {problem.objective.type === 'max' 
+                ? "Pour un problème de maximisation, la méthode du simplexe primal est généralement plus appropriée." 
+                : "Pour un problème de minimisation, la méthode du simplexe dual est généralement plus appropriée."}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      {result && (
+        <>
+          <div className="card mb-8 hover:shadow-xl transition-all duration-300">
+            <h2 className="card-title flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+              </svg>
+              Navigation des itérations
+            </h2>
+            
+            <div className="flex flex-wrap gap-2 mb-4">
+              {result.iterations.map((_, index) => (
+                <button
+                  key={`iter-${index}`}
+                  onClick={() => handleIterationChange(index)}
+                  className={`px-4 py-2 rounded-md transition-all duration-200 ${
+                    currentIteration === index 
+                      ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md' 
+                      : 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-50'
+                  }`}
+                >
+                  {index === 0 ? 'Tableau initial' : `Itération ${index}`}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {result.iterations[currentIteration] && (
+            <div className="card mb-8 hover:shadow-xl transition-all duration-300">
+              <h2 className="card-title flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                {currentIteration === 0 
+                  ? "Tableau initial" 
+                  : result.iterations[currentIteration].isOptimal 
+                    ? "Solution optimale trouvée" 
+                    : result.iterations[currentIteration].isUnbounded 
+                      ? "Problème non borné détecté" 
+                      : `Itération ${currentIteration}`}
+              </h2>
+              
+              {currentIteration === 0 && (
+                <div className="p-4 rounded-lg mb-6" style={{backgroundColor: 'rgba(var(--primary-light), 0.1)'}}>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center" style={{color: 'rgba(var(--primary-color), 0.9)'}}>
+                    <div className="rounded-full h-2 w-2 mr-2" style={{backgroundColor: 'rgba(var(--primary-color), 1)'}}></div>
+                    <span>Variables d'écart utilisées</span>
+                  </h3>
+                  <ul className="space-y-2">
+                    {result.iterations[0].basicVariables.map((variable, index) => (
+                      <li key={`slack-${index}`} className="flex items-center">
+                        <div className="rounded-full h-1 w-1 mr-2" style={{backgroundColor: 'rgba(var(--primary-color), 0.6)'}}></div>
+                        <span className="font-medium" style={{color: 'rgba(var(--primary-color), 0.9)'}}>{variable}</span>
+                        <span className="ml-2" style={{color: 'rgba(var(--foreground-rgb), 0.8)'}}>: Variable d'écart pour la contrainte {index + 1}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Afficher d'abord les explications */}
+              <div className="mb-6">
+                {renderIterationDetails(result.iterations[currentIteration])}
+              </div>
+              
+              {/* Puis afficher le tableau */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-3 flex items-center">
+                  <div className="rounded-full h-2 w-2 mr-2" style={{backgroundColor: 'rgba(var(--accent-color), 1)'}}></div>
+                  <span>Tableau de l'itération</span>
+                </h3>
+                {renderTableau(
+                  result.iterations[currentIteration].tableau,
+                  result.iterations[currentIteration]
+                )}
+              </div>
+            </div>
+          )}
+          
+          {result.optimal && currentIteration === result.iterations.length - 1 && (
+            <div className="card mb-8 hover:shadow-xl transition-all duration-300">
+              <h2 className="card-title flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" style={{color: 'rgba(var(--primary-color), 1)'}} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Solution optimale
+              </h2>
+              {renderSolution()}
+            </div>
+          )}
+          
+          {result.unbounded && (
+            <div className="card mb-8 hover:shadow-xl transition-all duration-300 border-l-4 border-yellow-500">
+              <h2 className="card-title flex items-center text-yellow-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Problème non borné
+              </h2>
+              <p className="text-yellow-700">
+                Le problème est non borné. La fonction objectif peut prendre des valeurs arbitrairement grandes.
+              </p>
+            </div>
+          )}
+          
+          {result.infeasible && (
+            <div className="card mb-8 hover:shadow-xl transition-all duration-300 border-l-4 border-yellow-500">
+              <h2 className="card-title flex items-center text-yellow-700">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Problème infaisable
+              </h2>
+              <p className="text-yellow-700">
+                Le problème est infaisable. Il n'existe pas de solution respectant toutes les contraintes.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+      
+      <div className="flex flex-wrap justify-between mt-8 gap-4">
+        <div>
+          <button 
+            onClick={() => router.push('/problem')} 
+            className="btn-secondary mr-2"
+          >
+            Modifier le problème
+          </button>
+          <button 
+            onClick={() => router.push('/')} 
+            className="btn-secondary"
+          >
+            Nouveau problème
+          </button>
+        </div>
+        
+        <button 
+          onClick={() => {
+            // Préparer la page pour l'impression
+            const printContent = document.getElementById('print-content');
+            const originalBody = document.body.innerHTML;
+            
+            if (printContent) {
+              // Ajouter un style d'impression
+              const style = document.createElement('style');
+              style.innerHTML = `
+                @media print {
+                  body { font-family: Arial, sans-serif; }
+                  .simplexe-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+                  .simplexe-table th, .simplexe-table td { border: 1px solid #333; padding: 8px; text-align: center; }
+                  .simplexe-table th { background-color: #f0f0f0; }
+                  .card { margin-bottom: 20px; page-break-inside: avoid; }
+                  .card-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+                  h2, h3, h4 { page-break-after: avoid; }
+                  .no-print { display: none; }
+                }
+              `;
+              document.head.appendChild(style);
+              
+              // Remplacer le contenu du body par le contenu à imprimer
+              document.body.innerHTML = `
+                <div style="padding: 20px;">
+                  <h1 style="text-align: center; margin-bottom: 20px;">Résolution par la méthode du simplexe</h1>
+                  ${printContent.innerHTML}
+                </div>
+              `;
+              
+              // Imprimer
+              window.print();
+              
+              // Restaurer le contenu original
+              document.body.innerHTML = originalBody;
+            }
+          }} 
+          className="btn-primary flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+          </svg>
+          Imprimer les résultats
+        </button>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,302 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { 
+  Problem, 
+  solveWithSimplexe, 
+  solveWithDualSimplexe, 
+  SimplexeResult, 
+  SimplexeIteration, 
+  Tableau 
+} from '../../utils/simplexe';
+
+export default function SolvePage() {
+  const router = useRouter();
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [result, setResult] = useState<SimplexeResult | null>(null);
+  const [method, setMethod] = useState<'primal' | 'dual'>('primal');
+  const [currentIteration, setCurrentIteration] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    // Récupérer le problème depuis localStorage
+    try {
+      const storedProblem = localStorage.getItem('simplexProblem');
+      if (storedProblem) {
+        const parsedProblem = JSON.parse(storedProblem) as Problem;
+        setProblem(parsedProblem);
+        setLoading(false);
+      } else {
+        setError('Aucun problème trouvé. Veuillez définir un problème.');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Erreur lors de la récupération du problème.');
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (problem) {
+      solveProblem();
+    }
+  }, [problem, method]);
+
+  const solveProblem = () => {
+    if (!problem) return;
+    
+    try {
+      let result;
+      if (method === 'primal') {
+        result = solveWithSimplexe(problem);
+      } else {
+        result = solveWithDualSimplexe(problem);
+      }
+      
+      setResult(result);
+      setCurrentIteration(0);
+    } catch (err) {
+      setError('Erreur lors de la résolution du problème.');
+    }
+  };
+
+  const handleMethodChange = (newMethod: 'primal' | 'dual') => {
+    setMethod(newMethod);
+  };
+
+  const handleIterationChange = (index: number) => {
+    if (result && index >= 0 && index < result.iterations.length) {
+      setCurrentIteration(index);
+    }
+  };
+
+  const renderTableau = (tableau: Tableau, iteration: SimplexeIteration) => {
+    const { pivotRow, pivotColumn } = iteration;
+    
+    return (
+      <table className="simplexe-table">
+        <thead>
+          <tr>
+            <th>Base</th>
+            {iteration.nonBasicVariables.map((variable, index) => (
+              <th key={`header-${index}`} className={pivotColumn === index ? 'highlight-cell' : ''}>
+                {variable}
+              </th>
+            ))}
+            <th>RHS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableau.slice(0, -1).map((row, rowIndex) => (
+            <tr key={`row-${rowIndex}`} className={pivotRow === rowIndex ? 'highlight-row' : ''}>
+              <td className="font-bold">{iteration.basicVariables[rowIndex]}</td>
+              {row.slice(0, -1).map((cell, cellIndex) => (
+                <td 
+                  key={`cell-${rowIndex}-${cellIndex}`}
+                  className={
+                    (pivotRow === rowIndex && pivotColumn === cellIndex) ? 'pivot-cell' :
+                    (pivotRow === rowIndex || pivotColumn === cellIndex) ? 'highlight-cell' : ''
+                  }
+                >
+                  {cell.toFixed(2)}
+                </td>
+              ))}
+              <td>{row[row.length - 1].toFixed(2)}</td>
+            </tr>
+          ))}
+          <tr>
+            <td className="font-bold">Z</td>
+            {tableau[tableau.length - 1].slice(0, -1).map((cell, cellIndex) => (
+              <td 
+                key={`z-cell-${cellIndex}`}
+                className={pivotColumn === cellIndex ? 'highlight-cell' : ''}
+              >
+                {cell.toFixed(2)}
+              </td>
+            ))}
+            <td className="font-bold">{tableau[tableau.length - 1][tableau[0].length - 1].toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  };
+
+  const renderIterationDetails = (iteration: SimplexeIteration) => {
+    if (iteration.isOptimal) {
+      return (
+        <div className="alert alert-success">
+          <p><strong>Solution optimale trouvée!</strong> Toutes les variables d'écart sont positives ou nulles et tous les coefficients de la fonction objectif sont négatifs ou nuls.</p>
+        </div>
+      );
+    }
+
+    if (iteration.isUnbounded) {
+      return (
+        <div className="alert alert-warning">
+          <p><strong>Problème non borné détecté!</strong> Il existe une colonne avec un coefficient positif dans la fonction objectif, mais tous les éléments de cette colonne sont négatifs ou nuls.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="iteration-details">
+        <p><strong>Variable entrante:</strong> {iteration.enteringVariable} (colonne {iteration.pivotColumn + 1})</p>
+        <p><strong>Variable sortante:</strong> {iteration.leavingVariable} (ligne {iteration.pivotRow + 1})</p>
+        <p><strong>Élément pivot:</strong> {iteration.pivotElement.toFixed(2)} à la position ({iteration.pivotRow + 1}, {iteration.pivotColumn + 1})</p>
+      </div>
+    );
+  };
+
+  const renderSolution = () => {
+    if (!result || !result.optimal) return null;
+    
+    const solution = result.solution;
+    const objectiveValue = result.objectiveValue;
+    
+    return (
+      <div className="solution">
+        <h3>Solution optimale</h3>
+        <p><strong>Valeur de la fonction objectif:</strong> {objectiveValue.toFixed(4)}</p>
+        <h4>Valeurs des variables:</h4>
+        <ul>
+          {solution.map((value, index) => (
+            <li key={`sol-${index}`}>
+              {index < problem!.objective.coefficients.length 
+                ? `x${index + 1}` 
+                : `s${index - problem!.objective.coefficients.length + 1}`}: {value.toFixed(4)}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return <div className="loading">Chargement...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+        <button 
+          onClick={() => router.push('/')} 
+          className="btn-primary"
+        >
+          Retour à l'accueil
+        </button>
+      </div>
+    );
+  }
+
+  if (!problem) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <div className="card">
+          <h2 className="card-title">Aucun problème défini</h2>
+          <p className="mb-4">Veuillez définir un problème de programmation linéaire pour continuer.</p>
+          <button 
+            onClick={() => router.push('/')} 
+            className="btn-primary"
+          >
+            Définir un problème
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="card">
+        <h2 className="card-title">Résolution par la méthode du simplexe</h2>
+        
+        <div className="flex space-x-4 mb-6">
+          <button 
+            onClick={() => handleMethodChange('primal')}
+            className={`${method === 'primal' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Simplexe primal
+          </button>
+          <button 
+            onClick={() => handleMethodChange('dual')}
+            className={`${method === 'dual' ? 'btn-primary' : 'btn-secondary'}`}
+          >
+            Simplexe dual
+          </button>
+        </div>
+        
+        {result && (
+          <>
+            <div className="mb-6">
+              <h3 className="text-lg font-bold text-blue-700 mb-2">Navigation des itérations</h3>
+              <div className="flex flex-wrap gap-2">
+                {result.iterations.map((_, index) => (
+                  <button
+                    key={`iter-${index}`}
+                    onClick={() => handleIterationChange(index)}
+                    className={`px-3 py-1 rounded border ${
+                      currentIteration === index 
+                        ? 'bg-blue-500 text-white border-blue-600' 
+                        : 'bg-white text-blue-500 border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    {index === 0 ? 'Initial' : `${index}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {result.iterations[currentIteration] && (
+              <div className="mb-6">
+                {renderTableau(
+                  result.iterations[currentIteration].tableau,
+                  result.iterations[currentIteration]
+                )}
+              </div>
+            )}
+            
+            {result.iterations[currentIteration] && (
+              <div className="mb-6">
+                {renderIterationDetails(result.iterations[currentIteration])}
+              </div>
+            )}
+            
+            {result.optimal && currentIteration === result.iterations.length - 1 && renderSolution()}
+            
+            {result.unbounded && (
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                Le problème est non borné. La fonction objectif peut prendre des valeurs arbitrairement grandes.
+              </div>
+            )}
+            
+            {result.infeasible && (
+              <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+                Le problème est infaisable. Il n'existe pas de solution respectant toutes les contraintes.
+              </div>
+            )}
+          </>
+        )}
+        
+        <div className="flex justify-between mt-8">
+          <button 
+            onClick={() => router.push('/problem')} 
+            className="btn-secondary"
+          >
+            Modifier le problème
+          </button>
+          <button 
+            onClick={() => router.push('/')} 
+            className="btn-secondary"
+          >
+            Nouveau problème
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
